@@ -29,7 +29,7 @@ cat <<EOF > ${JOB_FILE}
 [global]
 norandommap
 time_based=1
-runtime=20
+runtime=120
 ramp_time=5
 size=10g
 clocksource=gettimeofday
@@ -42,7 +42,7 @@ cat <<EOF > ${MIXED_JOB_FILE}
 [global]
 norandommap
 time_based=1
-runtime=20
+runtime=120
 ramp_time=5
 size=10g
 clocksource=gettimeofday
