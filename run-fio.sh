@@ -4,16 +4,23 @@
 USER_NAME=<your username>
 USER_EMAIL=<your e-mail address>
 USER_DESC="test-name-goes-here"
+
 CLIENT=<host to run on (ie. localhost)>
+
 SCENARIOS="read write randread randwrite mixed"
 ENGINES="libaio sync"
 IODEPTHS="1,4,8,12,16,20"
 BLOCK_SIZES="4k,8k,16k,32k,64k,128k,256k"
 SAMPLES=5
+
 TARGET_TYPE="device"
 TARGETS="/dev/nvme0n1 /dev/nvme1n1"
 #TARGET_TYPE="filesystem"
 #TARGETS="/mnt/nvme0n1 /mnt/nvme1n1"
+
+UPLOAD="yes"
+#UPLOAD="no"
+
 DIRECT=1
 
 . /opt/pbench-agent/base
@@ -177,12 +184,16 @@ for ENGINE in ${ENGINES}; do
                     notify -t "${ENGINE} run succeeded" -l INFO send "${RUN_DESC}"
                 fi
 
-                if pbench-move-results --user ${USER_EMAIL} --prefix ${PREFIX}; then
-                    notify -t "move-results succeeded" -l INFO send "${RUN_DESC}"
-                    pbench-clear-results
+                if [ "${UPLOAD}" == "yes" ]; then
+                    if pbench-move-results --user ${USER_EMAIL} --prefix ${PREFIX}; then
+                        notify -t "move-results succeeded" -l INFO send "${RUN_DESC}"
+                        pbench-clear-results
+                    else
+                        notify -t "move-results failed" -l CRITICAL send "${RUN_DESC}"
+                        exit 1
+                    fi
                 else
-                    notify -t "move-results failed" -l CRITICAL send "${RUN_DESC}"
-                    exit 1
+                    echo "Skipping pbench-move-results due to UPLOAD=${UPLOAD}"
                 fi
             done
             ;;
@@ -213,12 +224,16 @@ for ENGINE in ${ENGINES}; do
                     notify -t "sync run succeeded" -l INFO send "${RUN_DESC}"
                 fi
 
-                if pbench-move-results --user ${USER_EMAIL} --prefix ${PREFIX}; then
-                    notify -t "move-results succeeded" -l INFO send "${RUN_DESC}"
-                    pbench-clear-results
+                if [ "${UPLOAD}" == "yes" ]; then
+                    if pbench-move-results --user ${USER_EMAIL} --prefix ${PREFIX}; then
+                        notify -t "move-results succeeded" -l INFO send "${RUN_DESC}"
+                        pbench-clear-results
+                    else
+                        notify -t "move-results failed" -l CRITICAL send "${RUN_DESC}"
+                        exit 1
+                    fi
                 else
-                    notify -t "move-results failed" -l CRITICAL send "${RUN_DESC}"
-                    exit 1
+                    echo "Skipping pbench-move-results due to UPLOAD=${UPLOAD}"
                 fi
             done
             ;;
