@@ -22,14 +22,19 @@ TARGETS="/dev/nvme0n1 /dev/nvme1n1"
 UPLOAD="yes"
 #UPLOAD="no"
 
+DO_NOTIFY="yes"
+#DO_NOTIFY="no"
+
 DIRECT=1
 RUNTIME=120
 
 . /opt/pbench-agent/base
 
 function notify() {
-    if which ntfy > /dev/null 2>&1; then
-        ntfy "$@"
+    if [ "${DO_NOTIFY}" == "yes" ]; then
+        if which ntfy > /dev/null 2>&1; then
+            ntfy "$@"
+        fi
     fi
 }
 
