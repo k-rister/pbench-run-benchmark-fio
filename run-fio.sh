@@ -22,6 +22,7 @@ UPLOAD="yes"
 #UPLOAD="no"
 
 DIRECT=1
+RUNTIME=120
 
 . /opt/pbench-agent/base
 
@@ -40,7 +41,7 @@ cat <<EOF > ${JOB_FILE}
 [global]
 norandommap
 time_based=1
-runtime=120
+runtime=${RUNTIME}
 ramp_time=5
 size=10g
 clocksource=gettimeofday
@@ -53,7 +54,7 @@ cat <<EOF > ${MIXED_JOB_FILE}
 [global]
 norandommap
 time_based=1
-runtime=120
+runtime=${RUNTIME}
 ramp_time=5
 size=10g
 clocksource=gettimeofday
@@ -69,7 +70,7 @@ cat <<EOF > ${IO_URING_JOB_FILE}
 [global]
 norandommap
 time_based=1
-runtime=120
+runtime=${RUNTIME}
 ramp_time=5
 size=10g
 clocksource=gettimeofday
@@ -86,7 +87,7 @@ cat <<EOF > ${MIXED_IO_URING_JOB_FILE}
 [global]
 norandommap
 time_based=1
-runtime=120
+runtime=${RUNTIME}
 ramp_time=5
 size=10g
 clocksource=gettimeofday
