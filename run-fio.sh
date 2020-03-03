@@ -4,6 +4,7 @@
 USER_NAME=<your username>
 USER_EMAIL=<your e-mail address>
 USER_DESC="test-name-goes-here"
+USER_TAGS="${USER_DESC}"
 
 CLIENT=<host to run on (ie. localhost)>
 
@@ -157,9 +158,9 @@ for ENGINE in ${ENGINES}; do
                                 CURRENT_JOB_FILE=${IO_URING_JOB_FILE}
                                 ;;
                         esac
-                        pbench-run-benchmark fio --user-name=${USER_NAME} --user-email=${USER_EMAIL} --user-desc=${RUN_DESC} --clients=${CLIENT} --rw=[rw] --bs=[bs] --ioengine=${ENGINE} \
-                                                 --direct=${DIRECT} --sync=0 --iodepth=[iodepth] --jobfile=${CURRENT_JOB_FILE} --iodepth_batch_complete_max=[iodepth] --[rw]=${SCENARIO} \
-                                                 --[iodepth]=${IODEPTHS} --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}
+                        pbench-run-benchmark fio --user-name=${USER_NAME} --user-email=${USER_EMAIL} --user-desc=${RUN_DESC} --user-tags=${USER_TAGS} --clients=${CLIENT} \
+                                                 --rw=[rw] --bs=[bs] --ioengine=${ENGINE} --direct=${DIRECT} --sync=0 --iodepth=[iodepth] --jobfile=${CURRENT_JOB_FILE} \
+                                                 --iodepth_batch_complete_max=[iodepth] --[rw]=${SCENARIO} --[iodepth]=${IODEPTHS} --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}
                         RET_VAL=$?
                         ;;
                     "mixed")
@@ -171,9 +172,9 @@ for ENGINE in ${ENGINES}; do
                                 CURRENT_JOB_FILE=${MIXED_IO_URING_JOB_FILE}
                                 ;;
                         esac
-                        pbench-run-benchmark fio --user-name=${USER_NAME} --user-email=${USER_EMAIL} --user-desc=${RUN_DESC} --clients=${CLIENT} --rw=randrw --bs=[bs] --ioengine=${ENGINE} \
-                                                 --direct=${DIRECT} --sync=0 --iodepth=[iodepth] --jobfile=${CURRENT_JOB_FILE} --iodepth_batch_complete_max=[iodepth] \
-                                                 --[iodepth]=${IODEPTHS} --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}
+                        pbench-run-benchmark fio --user-name=${USER_NAME} --user-email=${USER_EMAIL} --user-desc=${RUN_DESC} --user-tags=${USER_TAGS} --clients=${CLIENT} \
+                                                 --rw=randrw --bs=[bs] --ioengine=${ENGINE} --direct=${DIRECT} --sync=0 --iodepth=[iodepth] --jobfile=${CURRENT_JOB_FILE} \
+                                                 --iodepth_batch_complete_max=[iodepth] --[iodepth]=${IODEPTHS} --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}
                         RET_VAL=$?
                         ;;
                 esac
@@ -205,15 +206,15 @@ for ENGINE in ${ENGINES}; do
 
                 case "${SCENARIO}" in
                     "read"|"write"|"randread"|"randwrite")
-                        pbench-run-benchmark fio --user-name=${USER_NAME} --user-email=${USER_EMAIL} --user-desc=${RUN_DESC} --clients=${CLIENT} --rw=[rw] --bs=[bs] --ioengine=sync \
-                                                 --direct=${DIRECT} --sync=0 --numjobs=[iodepth] --jobfile=${JOB_FILE} --[rw]=${SCENARIO} --[iodepth]=${IODEPTHS} \
-                                                 --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}
+                        pbench-run-benchmark fio --user-name=${USER_NAME} --user-email=${USER_EMAIL} --user-desc=${RUN_DESC} --user-tags=${USER_TAGS} --clients=${CLIENT} \
+                                                 --rw=[rw] --bs=[bs] --ioengine=sync --direct=${DIRECT} --sync=0 --numjobs=[iodepth] --jobfile=${JOB_FILE} \
+                                                 --[rw]=${SCENARIO} --[iodepth]=${IODEPTHS} --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}
                         RET_VAL=$?
                         ;;
                     "mixed")
-                        pbench-run-benchmark fio --user-name=${USER_NAME} --user-email=${USER_EMAIL} --user-desc=${RUN_DESC} --clients=${CLIENT} --rw=randrw --bs=[bs] --ioengine=sync \
-                                                 --direct=${DIRECT} --sync=0 --numjobs=[iodepth] --jobfile=${MIXED_JOB_FILE} --[iodepth]=${IODEPTHS} \
-                                                 --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}
+                        pbench-run-benchmark fio --user-name=${USER_NAME} --user-email=${USER_EMAIL} --user-desc=${RUN_DESC} --user-tags=${USER_TAGS} --clients=${CLIENT} \
+                                                 --rw=randrw --bs=[bs] --ioengine=sync --direct=${DIRECT} --sync=0 --numjobs=[iodepth] --jobfile=${MIXED_JOB_FILE} \
+                                                 --[iodepth]=${IODEPTHS} --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}
                         RET_VAL=$?
                         ;;
                 esac
