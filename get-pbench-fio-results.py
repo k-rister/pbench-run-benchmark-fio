@@ -105,12 +105,12 @@ def gather_data(node):
      for index in range(0, len(node)):
           if node[index]['client_hostname'] == 'all':
                fill_data_point('iops', node[index]['mean'])
-               fill_data_point('stddevpct', node[index]['stddevpct'])
+               fill_data_point('stddevpct', node[index]['stddevpct']/100.0)
                fill_data_point('stddev', node[index]['stddev'])
           else:
                increment_data_point('job_count')
                append_data_point('job_iops', node[index]['mean'])
-               append_data_point('job_stddevpct', node[index]['stddevpct'])
+               append_data_point('job_stddevpct', node[index]['stddevpct']/100.0)
                append_data_point('job_stddev', node[index]['stddev'])
 
 
