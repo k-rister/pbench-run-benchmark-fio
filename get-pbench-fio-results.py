@@ -157,8 +157,12 @@ def get_iodepths():
      iodepths = []
 
      for record in t_global.data:
-          if record['iodepth'] is not None and record['files'] is not None and record['job_count'] > 0:
-               iodepths.append(record['iodepth'] * record['job_count'] / len(record['files']))
+          if record['iodepth'] is not None and record['files'] is not None and record['calculated_job_count'] > 0:
+               real_iodepth = record['iodepth'] * record['calculated_job_count']
+
+               iodepths.append(real_iodepth)
+
+               record['calculated_iodepth'] = real_iodepth
 
      iodepths = list(set(iodepths))
      iodepths.sort()
@@ -191,22 +195,12 @@ def dump_result_matrix(block_sizes, iodepths, jobs):
           print("\nBlock Sizes (rows):")
      print(dump_json_readable(block_sizes))
 
-     if len(iodepths) > 1:
-          if t_global.args.long_output:
-               print("\nIO Depths (outer loop):")
-          else:
-               print("\nIO Depths (columns):")
-          print(dump_json_readable(iodepths))
-
-          print("\nioengine=libaio")
+     if t_global.args.long_output:
+          print("\nIO Depths (outer loop):")
      else:
-          if t_global.args.long_output:
-               print("\nJobs (outer loop):")
-          else:
-               print("\nJobs (columns):")
-          print(dump_json_readable(jobs))
+          print("\nIO Depths (columns):")
+     print(dump_json_readable(iodepths))
 
-          print("\nioengine=sync")
      print()
 
      dumps = [ 'iops', 'stddevpct' ]
@@ -216,18 +210,13 @@ def dump_result_matrix(block_sizes, iodepths, jobs):
 
           if t_global.args.long_output:
                string = ""
-               if len(iodepths) > 1:
-                    for iodepth in iodepths:
-                         for block_size in block_sizes:
-                              for record in t_global.data:
-                                   if record['iodepth'] == iodepth and record['bs'] == block_size:
-                                        string = "%s%s;" % (string, record[dump])
-               else:
-                    for job in jobs:
-                         for block_size in block_sizes:
-                              for record in t_global.data:
-                                   if record['calculated_job_count'] == job and record['bs'] == block_size:
-                                        string = "%s%s;" % (string, record[dump])
+
+               for iodepth in iodepths:
+                    for block_size in block_sizes:
+                         for record in t_global.data:
+                              if record['calculated_iodepth'] == iodepth and record['bs'] == block_size:
+                                   string = "%s%s;" % (string, record[dump])
+
                string = re.sub(r';$', '', string)
                print(string)
                print()
@@ -235,16 +224,11 @@ def dump_result_matrix(block_sizes, iodepths, jobs):
                for block_size in block_sizes:
                     string = ""
 
-                    if len(iodepths) > 1:
-                         for iodepth in iodepths:
-                              for record in t_global.data:
-                                   if record['iodepth'] == iodepth and record['bs'] == block_size:
-                                        string = "%s%s;" % (string, record[dump])
-                    else:
-                         for job in jobs:
-                              for record in t_global.data:
-                                   if record['calculated_job_count'] == job and record['bs'] == block_size:
-                                        string = "%s%s;" % (string, record[dump])
+                    for iodepth in iodepths:
+                         for record in t_global.data:
+                              if record['calculated_iodepth'] == iodepth and record['bs'] == block_size:
+                                   #string = "%s%s-%s-%s;" % (string, block_size, iodepth, record[dump])
+                                   string = "%s%s;" % (string, record[dump])
 
                     string = re.sub(r';$', '', string)
                     print(string)
@@ -280,8 +264,18 @@ def main():
      #print(dump_json_readable(t_global.data))
 
      block_sizes = get_block_sizes()
-     iodepths = get_iodepths()
+     #print("Block Sizes")
+     #print(dump_json_readable(block_sizes))
+
      jobs = get_jobs()
+     #print("Jobs")
+     #print(dump_json_readable(jobs))
+
+     iodepths = get_iodepths()
+     #print("IO Depths")
+     #print(dump_json_readable(iodepths))
+
+     #print(dump_json_readable(t_global.data))
 
      dump_result_matrix(block_sizes, iodepths, jobs)
 

@@ -9,10 +9,10 @@ USER_TAGS="${USER_DESC}"
 CLIENT=<host to run on (ie. localhost)>
 
 SCENARIOS="read write randread randwrite mixed"
-ENGINES="libaio sync"
+ENGINES="libaio io_uring sync"
 IODEPTHS="1,4,8,12,16,20"
 BLOCK_SIZES="4k,8k,16k,32k,64k,128k,256k"
-SAMPLES=5
+SAMPLES=3
 
 TARGET_TYPE="device"
 TARGETS="/dev/nvme0n1 /dev/nvme1n1"
@@ -24,6 +24,14 @@ UPLOAD="yes"
 
 DO_NOTIFY="yes"
 #DO_NOTIFY="no"
+
+MODE="run"
+#MODE="test"
+
+AIO_MULTIJOB="yes"
+#AIO_MULTIJOB="no"
+
+AIO_MULTIJOB_IOS_PER=4
 
 DIRECT=1
 RUNTIME=120
@@ -147,10 +155,14 @@ case "${TARGET_TYPE}" in
 esac
 
 for ENGINE in ${ENGINES}; do
+    echo "ENGINE=${ENGINE}"
+
     case "${ENGINE}" in
         "libaio"|"io_uring")
             PREFIX=${USER_DESC}-${ENGINE}
             for SCENARIO in ${SCENARIOS}; do
+                echo "SCENARIO=${SCENARIO}"
+
                 RUN_DESC=${USER_DESC}-${SCENARIO}-${ENGINE}
 
                 case "${SCENARIO}" in
@@ -163,9 +175,40 @@ for ENGINE in ${ENGINES}; do
                                 CURRENT_JOB_FILE=${IO_URING_JOB_FILE}
                                 ;;
                         esac
-                        pbench-run-benchmark fio --user-name=${USER_NAME} --user-email=${USER_EMAIL} --user-desc=${RUN_DESC} --user-tags=${USER_TAGS} --clients=${CLIENT} \
-                                                 --rw=[rw] --bs=[bs] --ioengine=${ENGINE} --direct=${DIRECT} --sync=0 --iodepth=[iodepth] --jobfile=${CURRENT_JOB_FILE} \
-                                                 --iodepth_batch_complete_max=[iodepth] --[rw]=${SCENARIO} --[iodepth]=${IODEPTHS} --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}
+
+                        case "${AIO_MULTIJOB}" in
+                            "no")
+                                param_sets="--rw=[rw] --bs=[bs] --ioengine=${ENGINE} --direct=${DIRECT} --sync=0 --iodepth=[iodepth] --jobfile=${CURRENT_JOB_FILE}"
+                                param_sets+=" --iodepth_batch_complete_max=[iodepth] --[rw]=${SCENARIO} --[iodepth]=${IODEPTHS} --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}"
+                                ;;
+                            "yes")
+                                TMP_IODEPTHS=$(echo "${IODEPTHS}" | sed -e "s/,/ /g")
+                                param_sets=""
+                                for IODEPTH in ${TMP_IODEPTHS}; do
+                                    JOBS=$(echo "${IODEPTH}/${AIO_MULTIJOB_IOS_PER}" | bc)
+                                    if [ "${JOBS}" == "0" ]; then
+                                        JOBS=1
+                                    fi
+                                    if [ "${JOBS}" -gt 1 ]; then
+                                        IODEPTH=${AIO_MULTIJOB_IOS_PER}
+                                    fi
+
+                                    param_sets+=" --rw=[rw] --bs=[bs] --ioengine=${ENGINE} --direct=${DIRECT} --sync=0 --iodepth=${IODEPTH} --numjobs=${JOBS} --jobfile=${CURRENT_JOB_FILE}"
+                                    param_sets+=" --iodepth_batch_complete_max=${IODEPTH} --[rw]=${SCENARIO} --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}"
+                                    param_sets+=" --"
+                                done
+                                ;;
+                        esac
+
+                        case "${MODE}" in
+                            "run")
+                                pbench-run-benchmark fio --user-name=${USER_NAME} --user-email=${USER_EMAIL} --user-desc=${RUN_DESC} --user-tags=${USER_TAGS} --clients=${CLIENT} ${param_sets}
+                                ;;
+                            "test")
+                                pbench-gen-iterations fio ${param_sets}
+                                ;;
+                        esac
+
                         RET_VAL=$?
                         ;;
                     "mixed")
@@ -177,70 +220,125 @@ for ENGINE in ${ENGINES}; do
                                 CURRENT_JOB_FILE=${MIXED_IO_URING_JOB_FILE}
                                 ;;
                         esac
-                        pbench-run-benchmark fio --user-name=${USER_NAME} --user-email=${USER_EMAIL} --user-desc=${RUN_DESC} --user-tags=${USER_TAGS} --clients=${CLIENT} \
-                                                 --rw=randrw --bs=[bs] --ioengine=${ENGINE} --direct=${DIRECT} --sync=0 --iodepth=[iodepth] --jobfile=${CURRENT_JOB_FILE} \
-                                                 --iodepth_batch_complete_max=[iodepth] --[iodepth]=${IODEPTHS} --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}
+
+                        case "${AIO_MULTIJOB}" in
+                            "no")
+                                param_sets="--rw=randrw --bs=[bs] --ioengine=${ENGINE} --direct=${DIRECT} --sync=0 --iodepth=[iodepth] --jobfile=${CURRENT_JOB_FILE}"
+                                param_sets+=" --iodepth_batch_complete_max=[iodepth] --[iodepth]=${IODEPTHS} --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}"
+                                ;;
+                            "yes")
+                                TMP_IODEPTHS=$(echo "${IODEPTHS}" | sed -e "s/,/ /g")
+                                param_sets=""
+                                for IODEPTH in ${TMP_IODEPTHS}; do
+                                    JOBS=$(echo "${IODEPTH}/${AIO_MULTIJOB_IOS_PER}" | bc)
+                                    if [ "${JOBS}" == "0" ]; then
+                                        JOBS=1
+                                    fi
+                                    if [ "${JOBS}" -gt 1 ]; then
+                                        IODEPTH=${AIO_MULTIJOB_IOS_PER}
+                                    fi
+
+                                    param_sets+=" --rw=randrw --bs=[bs] --ioengine=${ENGINE} --direct=${DIRECT} --sync=0 --iodepth=${IODEPTH} --numjobs=${JOBS} --jobfile=${CURRENT_JOB_FILE}"
+                                    param_sets+=" --iodepth_batch_complete_max=${IODEPTH} --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}"
+                                    param_sets+=" --"
+                                done
+                                ;;
+                        esac
+
+                        case "${MODE}" in
+                            "run")
+                                pbench-run-benchmark fio --user-name=${USER_NAME} --user-email=${USER_EMAIL} --user-desc=${RUN_DESC} --user-tags=${USER_TAGS} --clients=${CLIENT} ${param_sets}
+                                ;;
+                            "test")
+                                pbench-gen-iterations fio ${param_sets}
+                                ;;
+                        esac
+
                         RET_VAL=$?
                         ;;
                 esac
 
-                if [ "${RET_VAL}" != "0" ]; then
-                    notify -t "${ENGINE} run failed" -l INFO send "${RUN_DESC} - return code:${RET_VAL}"
-                    exit 1
-                else
-                    notify -t "${ENGINE} run succeeded" -l INFO send "${RUN_DESC}"
-                fi
-
-                if [ "${UPLOAD}" == "yes" ]; then
-                    if pbench-move-results --user ${USER_EMAIL} --prefix ${PREFIX}; then
-                        notify -t "move-results succeeded" -l INFO send "${RUN_DESC}"
-                        pbench-clear-results
-                    else
-                        notify -t "move-results failed" -l CRITICAL send "${RUN_DESC}"
+                if [ "${MODE}" == "run" ]; then
+                    if [ "${RET_VAL}" != "0" ]; then
+                        notify -t "${ENGINE} run failed" -l INFO send "${RUN_DESC} - return code:${RET_VAL}"
                         exit 1
+                    else
+                        notify -t "${ENGINE} run succeeded" -l INFO send "${RUN_DESC}"
                     fi
-                else
-                    echo "Skipping pbench-move-results due to UPLOAD=${UPLOAD}"
+
+                    if [ "${UPLOAD}" == "yes" ]; then
+                        if pbench-move-results --user ${USER_EMAIL} --prefix ${PREFIX}; then
+                            notify -t "move-results succeeded" -l INFO send "${RUN_DESC}"
+                            pbench-clear-results
+                        else
+                            notify -t "move-results failed" -l CRITICAL send "${RUN_DESC}"
+                            exit 1
+                        fi
+                    else
+                        echo "Skipping pbench-move-results due to UPLOAD=${UPLOAD}"
+                    fi
                 fi
             done
             ;;
         "sync")
             PREFIX=${USER_DESC}-sync
             for SCENARIO in ${SCENARIOS}; do
+                echo "SCENARIO=${SCENARIO}"
+
                 RUN_DESC=${USER_DESC}-${SCENARIO}-sync
 
                 case "${SCENARIO}" in
                     "read"|"write"|"randread"|"randwrite")
-                        pbench-run-benchmark fio --user-name=${USER_NAME} --user-email=${USER_EMAIL} --user-desc=${RUN_DESC} --user-tags=${USER_TAGS} --clients=${CLIENT} \
-                                                 --rw=[rw] --bs=[bs] --ioengine=sync --direct=${DIRECT} --sync=0 --numjobs=[iodepth] --jobfile=${JOB_FILE} \
-                                                 --[rw]=${SCENARIO} --[iodepth]=${IODEPTHS} --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}
+                        param_sets="--rw=[rw] --bs=[bs] --ioengine=sync --direct=${DIRECT} --sync=0 --numjobs=[iodepth] --jobfile=${JOB_FILE}"
+                        param_sets+=" --[rw]=${SCENARIO} --[iodepth]=${IODEPTHS} --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}"
+
+                        case "${MODE}" in
+                            "run")
+                                pbench-run-benchmark fio --user-name=${USER_NAME} --user-email=${USER_EMAIL} --user-desc=${RUN_DESC} --user-tags=${USER_TAGS} --clients=${CLIENT} ${param_sets}
+                                ;;
+                            "test")
+                                pbench-gen-iterations fio ${param_sets}
+                                ;;
+                        esac
+
                         RET_VAL=$?
                         ;;
                     "mixed")
-                        pbench-run-benchmark fio --user-name=${USER_NAME} --user-email=${USER_EMAIL} --user-desc=${RUN_DESC} --user-tags=${USER_TAGS} --clients=${CLIENT} \
-                                                 --rw=randrw --bs=[bs] --ioengine=sync --direct=${DIRECT} --sync=0 --numjobs=[iodepth] --jobfile=${MIXED_JOB_FILE} \
-                                                 --[iodepth]=${IODEPTHS} --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}
+                        param_sets="--rw=randrw --bs=[bs] --ioengine=sync --direct=${DIRECT} --sync=0 --numjobs=[iodepth] --jobfile=${MIXED_JOB_FILE}"
+                        param_sets+=" --[iodepth]=${IODEPTHS} --[bs]=${BLOCK_SIZES} --samples=${SAMPLES}"
+
+                        case "${MODE}" in
+                            "run")
+                                pbench-run-benchmark fio --user-name=${USER_NAME} --user-email=${USER_EMAIL} --user-desc=${RUN_DESC} --user-tags=${USER_TAGS} --clients=${CLIENT} ${param_sets}
+                                ;;
+                            "test")
+                                pbench-gen-iterations fio ${param_sets}
+                                ;;
+                        esac
+
                         RET_VAL=$?
                         ;;
                 esac
 
-                if [ "${RET_VAL}" != "0" ]; then
-                    notify -t "sync run failed" -l INFO send "${RUN_DESC} - return code:${RET_VAL}"
-                    exit 1
-                else
-                    notify -t "sync run succeeded" -l INFO send "${RUN_DESC}"
-                fi
-
-                if [ "${UPLOAD}" == "yes" ]; then
-                    if pbench-move-results --user ${USER_EMAIL} --prefix ${PREFIX}; then
-                        notify -t "move-results succeeded" -l INFO send "${RUN_DESC}"
-                        pbench-clear-results
-                    else
-                        notify -t "move-results failed" -l CRITICAL send "${RUN_DESC}"
+                if [ "${MODE}" == "run" ]; then
+                    if [ "${RET_VAL}" != "0" ]; then
+                        notify -t "sync run failed" -l INFO send "${RUN_DESC} - return code:${RET_VAL}"
                         exit 1
+                    else
+                        notify -t "sync run succeeded" -l INFO send "${RUN_DESC}"
                     fi
-                else
-                    echo "Skipping pbench-move-results due to UPLOAD=${UPLOAD}"
+
+                    if [ "${UPLOAD}" == "yes" ]; then
+                        if pbench-move-results --user ${USER_EMAIL} --prefix ${PREFIX}; then
+                            notify -t "move-results succeeded" -l INFO send "${RUN_DESC}"
+                            pbench-clear-results
+                        else
+                            notify -t "move-results failed" -l CRITICAL send "${RUN_DESC}"
+                            exit 1
+                        fi
+                    else
+                        echo "Skipping pbench-move-results due to UPLOAD=${UPLOAD}"
+                    fi
                 fi
             done
             ;;
