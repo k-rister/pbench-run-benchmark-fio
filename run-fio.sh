@@ -15,9 +15,11 @@ BLOCK_SIZES="4k,8k,16k,32k,64k,128k,256k"
 SAMPLES=3
 
 TARGET_TYPE="device"
-TARGETS="/dev/nvme0n1 /dev/nvme1n1"
+TARGETS[0]="/dev/nvme0n1"
+TARGETS[1]="/dev/nvme1n1"
 #TARGET_TYPE="filesystem"
-#TARGETS="/mnt/nvme0n1 /mnt/nvme1n1"
+#TARGETS[0]="/mnt/nvme0n1"
+#TARGETS[1]="/mnt/nvme1n1"
 
 UPLOAD="yes"
 #UPLOAD="no"
@@ -32,6 +34,17 @@ AIO_MULTIJOB="yes"
 #AIO_MULTIJOB="no"
 
 AIO_MULTIJOB_IOS_PER=4
+
+USE_AFFINITY="no"
+#USE_AFFINITY="yes"
+
+#AFFINITY_TYPE="cpu"
+AFFINITY_TYPE="numa"
+
+#TARGET_AFFINITY[0]="0-3"
+#TARGET_AFFINITY[1]="4-7"
+TARGET_AFFINITY[0]="0"
+TARGET_AFFINITY[1]="1"
 
 DIRECT=1
 RUNTIME=120
@@ -117,39 +130,71 @@ percentage_random=100,80
 
 EOF
 
+function create_affinity() {
+    local index=$1
+    local file=$2
+
+    if [ "${USE_AFFINITY}" == "no" ]; then
+        return
+    fi
+
+    if [ -z "${TARGET_AFFINITY[$i]}" ]; then
+        return
+    fi
+
+    case "${AFFINITY_TYPE}" in
+        "cpu")
+            echo "cpus_allowed=${TARGET_AFFINITY[$i]}" >> ${file}
+            echo "cpus_allowed_policy=shared" >> ${file}
+            ;;
+        "numa")
+            echo "numa_cpu_nodes=${TARGET_AFFINITY[$i]}" >> ${file}
+            echo "numa_mem_policy=local" >> ${file}
+            ;;
+    esac
+}
+
 case "${TARGET_TYPE}" in
     "device")
-        for TARGET in ${TARGETS}; do
-            echo "[job-${TARGET}]" >> ${JOB_FILE}
-            echo "filename=${TARGET}" >> ${JOB_FILE}
+        for ((i=0; $i < ${#TARGETS[*]}; i++)); do
+            echo "[job-${TARGETS[$i]}]" >> ${JOB_FILE}
+            echo "filename=${TARGETS[$i]}" >> ${JOB_FILE}
+            create_affinity $i ${JOB_FILE}
 
-            echo "[job-${TARGET}]" >> ${IO_URING_JOB_FILE}
-            echo "filename=${TARGET}" >> ${IO_URING_JOB_FILE}
+            echo "[job-${TARGETS[$i]}]" >> ${IO_URING_JOB_FILE}
+            echo "filename=${TARGETS[$i]}" >> ${IO_URING_JOB_FILE}
+            create_affinity $i ${IO_URING_JOB_FILE}
 
-            echo "[job-${TARGET}]" >> ${MIXED_JOB_FILE}
-            echo "filename=${TARGET}" >> ${MIXED_JOB_FILE}
+            echo "[job-${TARGETS[$i]}]" >> ${MIXED_JOB_FILE}
+            echo "filename=${TARGETS[$i]}" >> ${MIXED_JOB_FILE}
+            create_affinity $i ${MIXED_JOB_FILE}
 
-            echo "[job-${TARGET}]" >> ${MIXED_IO_URING_JOB_FILE}
-            echo "filename=${TARGET}" >> ${MIXED_IO_URING_JOB_FILE}
+            echo "[job-${TARGETS[$i]}]" >> ${MIXED_IO_URING_JOB_FILE}
+            echo "filename=${TARGETS[$i]}" >> ${MIXED_IO_URING_JOB_FILE}
+            create_affinity $i ${MIXED_IO_URING_JOB_FILE}
         done
         ;;
     "filesystem")
-        for TARGET in ${TARGETS}; do
-            echo "[job-${TARGET}]" >> ${JOB_FILE}
-            echo "directory=${TARGET}" >> ${JOB_FILE}
+        for ((i=0; $i < ${#TARGETS[*]}; i++)); do
+            echo "[job-${TARGETS[$i]}]" >> ${JOB_FILE}
+            echo "directory=${TARGETS[$i]}" >> ${JOB_FILE}
             echo "filename=fio.test.file" >> ${JOB_FILE}
+            create_affinity $i ${JOB_FILE}
 
-            echo "[job-${TARGET}]" >> ${IO_URING_JOB_FILE}
-            echo "directory=${TARGET}" >> ${IO_URING_JOB_FILE}
+            echo "[job-${TARGETS[$i]}]" >> ${IO_URING_JOB_FILE}
+            echo "directory=${TARGETS[$i]}" >> ${IO_URING_JOB_FILE}
             echo "filename=fio.test.file" >> ${IO_URING_JOB_FILE}
+            create_affinity $i ${IO_URING_JOB_FILE}
 
-            echo "[job-${TARGET}]" >> ${MIXED_JOB_FILE}
-            echo "directory=${TARGET}" >> ${MIXED_JOB_FILE}
+            echo "[job-${TARGETS[$i]}]" >> ${MIXED_JOB_FILE}
+            echo "directory=${TARGETS[$i]}" >> ${MIXED_JOB_FILE}
             echo "filename=fio.test.file" >> ${MIXED_JOB_FILE}
+            create_affinity $i ${MIXED_JOB_FILE}
 
-            echo "[job-${TARGET}]" >> ${MIXED_IO_URING_JOB_FILE}
-            echo "directory=${TARGET}" >> ${MIXED_IO_URING_JOB_FILE}
+            echo "[job-${TARGETS[$i]}]" >> ${MIXED_IO_URING_JOB_FILE}
+            echo "directory=${TARGETS[$i]}" >> ${MIXED_IO_URING_JOB_FILE}
             echo "filename=fio.test.file" >> ${MIXED_IO_URING_JOB_FILE}
+            create_affinity $i ${MIXED_IO_URING_JOB_FILE}
         done
         ;;
 esac
