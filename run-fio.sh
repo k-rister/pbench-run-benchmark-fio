@@ -74,7 +74,6 @@ size=10g
 clocksource=gettimeofday
 iodepth_batch_complete_min=1
 iodepth_batch_submit=0
-
 EOF
 
 cat <<EOF > ${MIXED_JOB_FILE}
@@ -90,7 +89,6 @@ iodepth_batch_submit=0
 rwmixread=60
 rwmixwrite=40
 percentage_random=100,80
-
 EOF
 
 cat <<EOF > ${IO_URING_JOB_FILE}
@@ -107,7 +105,6 @@ hipri
 fixedbufs
 registerfiles
 sqthread_poll=1
-
 EOF
 
 cat <<EOF > ${MIXED_IO_URING_JOB_FILE}
@@ -127,7 +124,6 @@ sqthread_poll=1
 rwmixread=60
 rwmixwrite=40
 percentage_random=100,80
-
 EOF
 
 function create_affinity() {
@@ -154,46 +150,53 @@ function create_affinity() {
     esac
 }
 
+function create_device_job() {
+    local target=$1
+    local file=$2
+
+    echo >> ${file}
+    echo "[job-${target}]" >> ${file}
+    echo "filename=${target}" >> ${file}
+}
+
+function create_filesystem_job() {
+    local target=$1
+    local file=$2
+
+    echo >> ${file}
+    echo "[job-${target}]" >> ${file}
+    echo "directory=${target}" >> ${file}
+    echo "filename=fio.test.file" >> ${file}
+}
+
 case "${TARGET_TYPE}" in
     "device")
         for ((i=0; $i < ${#TARGETS[*]}; i++)); do
-            echo "[job-${TARGETS[$i]}]" >> ${JOB_FILE}
-            echo "filename=${TARGETS[$i]}" >> ${JOB_FILE}
+            create_device_job ${TARGETS[$i]} ${JOB_FILE}
             create_affinity $i ${JOB_FILE}
 
-            echo "[job-${TARGETS[$i]}]" >> ${IO_URING_JOB_FILE}
-            echo "filename=${TARGETS[$i]}" >> ${IO_URING_JOB_FILE}
+            create_device_job ${TARGETS[$i]} ${IO_URING_JOB_FILE}
             create_affinity $i ${IO_URING_JOB_FILE}
 
-            echo "[job-${TARGETS[$i]}]" >> ${MIXED_JOB_FILE}
-            echo "filename=${TARGETS[$i]}" >> ${MIXED_JOB_FILE}
+            create_device_job ${TARGETS[$i]} ${MIXED_JOB_FILE}
             create_affinity $i ${MIXED_JOB_FILE}
 
-            echo "[job-${TARGETS[$i]}]" >> ${MIXED_IO_URING_JOB_FILE}
-            echo "filename=${TARGETS[$i]}" >> ${MIXED_IO_URING_JOB_FILE}
+            create_device_job ${TARGETS[$i]} ${MIXED_IO_URING_JOB_FILE}
             create_affinity $i ${MIXED_IO_URING_JOB_FILE}
         done
         ;;
     "filesystem")
         for ((i=0; $i < ${#TARGETS[*]}; i++)); do
-            echo "[job-${TARGETS[$i]}]" >> ${JOB_FILE}
-            echo "directory=${TARGETS[$i]}" >> ${JOB_FILE}
-            echo "filename=fio.test.file" >> ${JOB_FILE}
+            create_device_job ${TARGETS[$i]} ${JOB_FILE}
             create_affinity $i ${JOB_FILE}
 
-            echo "[job-${TARGETS[$i]}]" >> ${IO_URING_JOB_FILE}
-            echo "directory=${TARGETS[$i]}" >> ${IO_URING_JOB_FILE}
-            echo "filename=fio.test.file" >> ${IO_URING_JOB_FILE}
+            create_device_job ${TARGETS[$i]} ${IO_URING_JOB_FILE}
             create_affinity $i ${IO_URING_JOB_FILE}
 
-            echo "[job-${TARGETS[$i]}]" >> ${MIXED_JOB_FILE}
-            echo "directory=${TARGETS[$i]}" >> ${MIXED_JOB_FILE}
-            echo "filename=fio.test.file" >> ${MIXED_JOB_FILE}
+            create_device_job ${TARGETS[$i]} ${MIXED_JOB_FILE}
             create_affinity $i ${MIXED_JOB_FILE}
 
-            echo "[job-${TARGETS[$i]}]" >> ${MIXED_IO_URING_JOB_FILE}
-            echo "directory=${TARGETS[$i]}" >> ${MIXED_IO_URING_JOB_FILE}
-            echo "filename=fio.test.file" >> ${MIXED_IO_URING_JOB_FILE}
+            create_device_job ${TARGETS[$i]} ${MIXED_IO_URING_JOB_FILE}
             create_affinity $i ${MIXED_IO_URING_JOB_FILE}
         done
         ;;
